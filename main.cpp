@@ -2,8 +2,12 @@
 #include <cstdlib>
 #include <math.h>
 
+// modify these if you want more than just E12
+const int numBaseResistors = 12;
 const double baseResistors[] = {1, 1.2, 1.5, 1.8, 2.2, 2.7, 3.3, 3.9, 4.7, 5.6, 6.8, 8.1};
 
+// a single resistor combination.
+// this is either just a resistor, or a series or parallel combination of two resistors
 typedef struct resistorCombo {
   resistorCombo* R1;
   resistorCombo* R2;
@@ -11,11 +15,13 @@ typedef struct resistorCombo {
   int type;       // 0 = solo, 1 = series, 2 = parallel
 } resistorCombo;
 
+// maintains an array of resistor combinations
 typedef struct {
   resistorCombo* resistances;
   int numStored, maxStorable;
 } resistorList;
 
+// add one resistor (combo) to a given resistor list
 void appendResistor(resistorList* resistors, double newValue, resistorCombo* newR1, resistorCombo* newR2, int newType) {
   if (resistors->maxStorable <= resistors->numStored) {
     int newSize = 3*resistors->maxStorable/2;
@@ -42,6 +48,7 @@ void appendResistor(resistorList* resistors, double newValue, resistorCombo* new
   resistors->numStored += 1;
 }
 
+// initialize a resistor list
 void initResistorList(resistorList* resistors) {
   if (resistors->resistances != 0) {
     resistors->maxStorable = 0;
@@ -61,12 +68,13 @@ void initResistorList(resistorList* resistors) {
   resistors->maxStorable = 60;
 
   for (int i=0; i<=6; i++) {
-    for (int j=0; j<12; j++) {
+    for (int j=0; j<numBaseResistors; j++) {
       appendResistor(resistors, baseResistors[j]*pow(10.0, i), 0, 0, 0); 
     }
   }
 }
 
+// recursively prints a resistor combination
 void printResistorCombo(resistorCombo* combo) {
   if (combo->R2 == combo || combo->R1 == combo) {
     printf("Self reference!\n");
@@ -85,15 +93,18 @@ void printResistorCombo(resistorCombo* combo) {
   }
 }
 
+// destroy a resistor list, freeing its memory
 void destroyResistorList(resistorList* resistors) {
   free(resistors->resistances);
 }
 
 int main() {
+  // the initial list. this just contains all resistors in the E12 series up to megaohms
   resistorList resistors;
   resistors.resistances = 0;
   initResistorList(&resistors);
 
+  // the list containing all useful combinations of resistors
   resistorList resistors2;
   resistorCombo* resistorArray = (resistorCombo*)malloc(sizeof(resistorCombo)*5);
   if (!resistorArray) {
@@ -104,12 +115,14 @@ int main() {
   resistors2.numStored = 0; 
   resistors2.maxStorable = 5;
 
+  // for each possible combination (ignoring order), add the pair to the second list
   for (int i=0; i<resistors.numStored; i++) {
     for (int j=0; j<=i; j++) {
       resistorCombo* R1 = &resistors.resistances[i];
       resistorCombo* R2 = &resistors.resistances[j];
       double R1val = (*R1).value;
       double R2val = (*R2).value;
+      // calculate the series and parallel combination of R1 and R2
       double newSeries = R1val + R2val;
       double newParallel = 1/(1/R1val + 1/R2val);
 
@@ -122,9 +135,12 @@ int main() {
     }
   }
 
+  // get the desired resistor from the user
   double goal;
   printf("Enter the desired resistor (ohm): ");
   scanf("%lf", &goal);
+
+  // sort the resistors by how close they are to user input
   for (int i=0; i<resistors2.numStored; i++) {
     for (int j=0; j<i; j++) {
       double d1 = goal - resistors2.resistances[i].value;
@@ -139,7 +155,8 @@ int main() {
       }
     }
   }
-
+  
+  // print the top ten from the above sorted list
   for (int i=0; i<10; i++) {
     resistorCombo curCombo = resistors2.resistances[i];
     printf("%d: %.2lf is %.2lf\n", i+1, goal, curCombo.value);
@@ -148,6 +165,7 @@ int main() {
     printf("\n");
   }
 
+  // free memory...
   destroyResistorList(&resistors);
   destroyResistorList(&resistors2);
 
