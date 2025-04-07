@@ -23,50 +23,61 @@ typedef struct {
 
 // add one resistor (combo) to a given resistor list
 void appendResistor(resistorList* resistors, double newValue, resistorCombo* newR1, resistorCombo* newR2, int newType) {
+  // if we run out of space, allocate moar space
   if (resistors->maxStorable <= resistors->numStored) {
     int newSize = 3*resistors->maxStorable/2;
     if (newSize == resistors->maxStorable) newSize += 3;
   
+    // ask politely for memory
     resistorCombo* newResistorArray = (resistorCombo*)realloc(resistors->resistances, sizeof(resistorCombo)*newSize);
 
+    // if no memory, die
     if (!newResistorArray) {
       printf("Couldn't allocate memory for resistor array during resize!\n");
       return;
     }
 
+    // update resistor list variables
     resistors->resistances = newResistorArray;
     resistors->maxStorable = newSize;
   }
 
+  // create new resistor combo
   resistorCombo newResistor;
   newResistor.R1 = newR1;
   newResistor.R2 = newR2;
   newResistor.value = newValue;
   newResistor.type = newType;
 
+  // actually append the damn resistor combo to the array!
   resistors->resistances[resistors->numStored] = newResistor;
   resistors->numStored += 1;
 }
 
 // initialize a resistor list
 void initResistorList(resistorList* resistors) {
+  // check if array is already allocated, and free it if so
   if (resistors->resistances != 0) {
     resistors->maxStorable = 0;
     resistors->numStored = 0;
     free(resistors->resistances);
   }
 
-  resistorCombo* resistorArray = (resistorCombo*)malloc(sizeof(resistorCombo)*12*5);
+  // allocate array
+  resistorCombo* resistorArray = (resistorCombo*)malloc(sizeof(resistorCombo)*1);
 
+  // if no memory could be obtained, shit the bed
   if (!resistorArray) {
     printf("Couldn't allocate memory for resistor array!\n");
     return;
   }
 
+  // set up the array and array status variables
   resistors->resistances = resistorArray;
   resistors->numStored = 0;
-  resistors->maxStorable = 60;
+  resistors->maxStorable = 1;
 
+  // initialize array with E12 values up to the megaohm range
   for (int i=0; i<=6; i++) {
     for (int j=0; j<numBaseResistors; j++) {
       appendResistor(resistors, baseResistors[j]*pow(10.0, i), 0, 0, 0); 
@@ -76,13 +87,16 @@ void initResistorList(resistorList* resistors) {
 
 // recursively prints a resistor combination
 void printResistorCombo(resistorCombo* combo) {
+  // this used to be a bug catcher...
   if (combo->R2 == combo || combo->R1 == combo) {
     printf("Self reference!\n");
     return;
   }
 
+  // if it's a single resistor, just print the value
   if (combo->type == 0)
     printf("%.2lf", combo->value);
+  // if it's either series or parallel combo, print recursively with correct format
   else {
     printf("(");
     printResistorCombo(combo->R1); 
